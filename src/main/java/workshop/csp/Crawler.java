@@ -51,7 +51,6 @@ public class Crawler {
   }
 }
 
-
 class FiberApi extends FiberAsync<Body, RuntimeException> {
 
   private final Api api;
@@ -64,7 +63,10 @@ class FiberApi extends FiberAsync<Body, RuntimeException> {
 
   @Override
   protected void requestAsync() {
-    // Fill in.
+    api.get(parent, input -> {
+      asyncCompleted(input);
+      return null;
+    });
   }
 
 }
