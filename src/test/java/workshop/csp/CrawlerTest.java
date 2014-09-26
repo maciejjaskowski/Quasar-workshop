@@ -2,12 +2,11 @@ package workshop.csp;
 
 import static com.google.common.collect.Lists.newArrayList;
 import static org.assertj.core.api.Assertions.assertThat;
-import static org.mockito.Matchers.contains;
 import static org.mockito.Mockito.doAnswer;
 
 import co.paralleluniverse.strands.channels.ReceivePort;
 import com.google.common.base.Function;
-import com.google.common.collect.Lists;
+import org.junit.Before;
 import org.junit.Test;
 import org.junit.runner.RunWith;
 import org.mockito.InjectMocks;
@@ -28,8 +27,12 @@ public class CrawlerTest {
   @Mock
   private Api api;
 
-  @InjectMocks
   private Crawler crawler;
+
+  @Before
+  public void setUp() throws Exception {
+    crawler = new Crawler(api);
+  }
 
   @Test
   public void worksForSinglePage() throws Exception {
@@ -87,6 +90,26 @@ public class CrawlerTest {
     assertThat(answer).contains(pageA, pageB, pageC, pageD);
   }
 
+  @Test
+  public void crawlsOnlySomePagesOnTimeout() throws Exception {
+    initCrawlerWithTimeout(100);
+    Body pageA = new Body("a", 2);
+    Body pageB = new Body("b", 3);
+    Body pageC = new Body("c");
+    mockApiFor(1, pageA, 50);
+    mockApiFor(2, pageB, 30);
+    mockApiFor(3, pageC, 30);
+    crawler.getRequestCh().send(1);
+    crawler.getRequestCh().close();
+    List<Body> answer = runCrawlerGetAnswer();
+    assertThat(answer).hasSize(2);
+    // page C should not get into result due to timeout
+    assertThat(answer).contains(pageA, pageB);
+  }
+
+  private void initCrawlerWithTimeout(int timeout) {
+    crawler = new Crawler(api, timeout);
+  }
 
   private List<Body> runCrawlerGetAnswer() throws Exception {
     return runCrawlerGetAnswers(1).get(0);
@@ -103,8 +126,15 @@ public class CrawlerTest {
   }
 
   private void mockApiFor(int page, Body body) {
+    mockApiFor(page, body, 0);
+  }
+
+  private void mockApiFor(int page, Body body, long sleepTime) {
     doAnswer(invocationOnMock -> {
       Function<Body, Void> callback = (Function<Body, Void>) invocationOnMock.getArguments()[1];
+      if (sleepTime > 0) {
+        Thread.sleep(sleepTime);
+      }
       callback.apply(body);
       return null;
     }).when(api).get(Mockito.eq(page), Mockito.any(Function.class));

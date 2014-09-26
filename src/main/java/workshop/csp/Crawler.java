@@ -38,6 +38,7 @@ package workshop.csp;
 
 import static co.paralleluniverse.strands.channels.Channels.newChannel;
 import static com.google.common.collect.Lists.newArrayList;
+import static java.util.Optional.empty;
 
 import co.paralleluniverse.fibers.Fiber;
 import co.paralleluniverse.fibers.FiberAsync;
@@ -50,16 +51,26 @@ import com.google.common.collect.Maps;
 
 import java.util.List;
 import java.util.Map;
+import java.util.Optional;
 import java.util.concurrent.ExecutionException;
+import java.util.concurrent.TimeUnit;
+import java.util.concurrent.TimeoutException;
 
 public class Crawler {
 
   private final Channel<Integer> requestsCh = newChannel(-1);
   private final Channel<List<Body>> answersCh = newChannel(-1);
   private final Api remoteApi;
+  private final Optional<Long> timeout;
 
   public Crawler(Api remoteApi) {
     this.remoteApi = remoteApi;
+    this.timeout = empty();
+  }
+
+  public Crawler(Api remoteApi, long timeout) {
+    this.remoteApi = remoteApi;
+    this.timeout = Optional.of(timeout);
   }
 
   public SendPort<Integer> getRequestCh() {
@@ -82,12 +93,19 @@ public class Crawler {
     Channel<Integer> internalChannel = newChannel(-1);
     internalChannel.send(parent);
     Map<Integer, Body> visitedPages = Maps.newHashMap();
+    long start = System.currentTimeMillis();
     while (true) {
       Integer pageLink = internalChannel.tryReceive();
       if (pageLink == null) {
         break;
       }
-      Body body = new FiberApi(remoteApi, pageLink).run();
+
+      Body body = getBody(start, pageLink);
+      if (body == null) {
+        // timeout
+        break;
+      }
+
       visitedPages.put(pageLink, body);
       for (Integer link : body.links) {
         if (!visitedPages.containsKey(link)) {
@@ -95,7 +113,27 @@ public class Crawler {
         }
       }
     }
+    internalChannel.close();
     answersCh.send(newArrayList(visitedPages.values()));
+  }
+
+  private Body getBody(long crawlingStart, Integer pageLink) throws SuspendExecution, InterruptedException {
+    Body body;
+    if (timeout.isPresent()) {
+      long now = System.currentTimeMillis();
+      long remainingTimeout = timeout.get() - now + crawlingStart;
+      if (remainingTimeout <= 0) {
+        return null;
+      }
+      try {
+        body = new FiberApi(remoteApi, pageLink).run(remainingTimeout, TimeUnit.MILLISECONDS);
+      } catch (TimeoutException e) {
+        return null;
+      }
+    } else {
+      body = new FiberApi(remoteApi, pageLink).run();
+    }
+    return body;
   }
 }
 
