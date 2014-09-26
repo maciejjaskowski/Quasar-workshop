@@ -36,18 +36,44 @@ package workshop.csp;
 // Change your Crawler in such a way that up to N requests can be processed concurrently.
 
 
+import static co.paralleluniverse.strands.channels.Channels.newChannel;
+import static com.google.common.collect.Lists.newArrayList;
+
+import co.paralleluniverse.fibers.Fiber;
 import co.paralleluniverse.fibers.FiberAsync;
+import co.paralleluniverse.fibers.SuspendExecution;
+import co.paralleluniverse.strands.SuspendableRunnable;
+import co.paralleluniverse.strands.channels.Channel;
 import co.paralleluniverse.strands.channels.ReceivePort;
-import com.google.common.base.Function;
+import co.paralleluniverse.strands.channels.SendPort;
+
+import java.util.List;
+import java.util.concurrent.ExecutionException;
 
 public class Crawler {
 
-//    public final SendPort<Integer> requestsCh;
-//    public final ReceivePort<List<Body>> answersCh;
+  private final Channel<Integer> requestsCh = newChannel(-1);
+  private final Channel<List<Body>> answersCh = newChannel(-1);
+  private final Api remoteApi;
 
-  public ReceivePort<Body> run() {
-    // Fill in.
-    return null;
+
+  public Crawler(Api remoteApi) {
+    this.remoteApi = remoteApi;
+  }
+
+  public SendPort<Integer> getRequestCh() {
+    return requestsCh;
+  }
+
+  public ReceivePort<List<Body>> run() throws SuspendExecution, InterruptedException, ExecutionException {
+    Fiber<Void> fiber = new Fiber<Void>((SuspendableRunnable) () -> {
+      Integer parent = requestsCh.receive();
+      Body body = new FiberApi(remoteApi, parent).run();
+      answersCh.send(newArrayList(body));
+
+    }).start();
+    fiber.join();
+    return answersCh;
   }
 }
 
