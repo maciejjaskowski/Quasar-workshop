@@ -18,12 +18,7 @@ public class FiberApiTest {
   @Test
   public void wraps_Api() throws Exception {
     final Channel<Body> ch = Channels.newChannel(4);
-    new Fiber<Integer[]>(new SuspendableRunnable() {
-      @Override
-      public void run() throws SuspendExecution, InterruptedException {
-        ch.send(new FiberApi(new RemoteApi(5), 1).run());
-      }
-    }).start();
+    new Fiber<Integer[]>(() -> ch.send(new FiberApi(new RemoteApi(5), 1).run())).start();
 
     assertThat(ch.receive()).isEqualTo(new Body("I am 1", array(2, 3)));
   }
@@ -31,13 +26,10 @@ public class FiberApiTest {
   @Test
   public void suspends_fiber() throws Exception {
     final Channel<Long> ch = Channels.newChannel(4);
-    new Fiber<Long>(new SuspendableRunnable() {
-      @Override
-      public void run() throws SuspendExecution, InterruptedException {
-        ch.send(System.currentTimeMillis());
-        new FiberApi(new RemoteApi(5), 1).run();
-        ch.send(System.currentTimeMillis());
-      }
+    new Fiber<Long>((SuspendableRunnable) () -> {
+      ch.send(System.currentTimeMillis());
+      new FiberApi(new RemoteApi(5), 1).run();
+      ch.send(System.currentTimeMillis());
     }).start();
 
     Long before = ch.receive();

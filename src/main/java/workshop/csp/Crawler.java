@@ -45,27 +45,27 @@ public class Crawler {
 //    public final SendPort<Integer> requestsCh;
 //    public final ReceivePort<List<Body>> answersCh;
 
-    public ReceivePort<Body> run() {
-        // Fill in.
-        return null;
-    }
+  public ReceivePort<Body> run() {
+    // Fill in.
+    return null;
+  }
 }
 
 
 class FiberApi extends FiberAsync<Body, RuntimeException> {
 
-    private final Api api;
-    private Integer parent;
+  private final Api api;
+  private Integer parent;
 
-    public FiberApi(Api api, Integer parent) {
-        this.api = api;
-        this.parent = parent;
-    }
+  public FiberApi(Api api, Integer parent) {
+    this.api = api;
+    this.parent = parent;
+  }
 
-    @Override
-    protected void requestAsync() {
-        // Fill in.
-    }
+  @Override
+  protected void requestAsync() {
+    // Fill in.
+  }
 
 }
 
