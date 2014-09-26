@@ -146,7 +146,7 @@ public class Tutorial {
   }
 
   @Test
-  public void exercise3() throws Exception {
+  public void exercise3WithMessageOnPillChannel() throws Exception {
     // Change the body of Runnable in Thread so, that the thread.join() doesn't block the the test
     // make use of the poisonPillCh!
     //
@@ -159,10 +159,9 @@ public class Tutorial {
 
     Thread thread = new Thread(() -> {
       try {
-        while (true) {
+        while (poisonPillCh.tryReceive() == null) {
           chResult.send(ch1.receive() + 2);
           Thread.sleep(100);
-
 
         }
 
@@ -174,10 +173,50 @@ public class Tutorial {
 
     ch1.send(1L);
     ch1.send(2L);
+
+    assertThat(chResult.receive()).isEqualTo(3l);
+    assertThat(chResult.receive()).isEqualTo(4l);
+
     poisonPillCh.send(1L);
 
     thread.join();
 
+  }
+
+  @Test
+  public void exercise3WithClose() throws Exception {
+    // Change the body of Runnable in Thread so, that the thread.join() doesn't block the the test
+    // make use of the poisonPillCh!
+    //
+    // Alternatively, instead of poisonPillCh.send(1L) one could ch1.close() the channel.
+    // What's the difference between those two solutions?
+
+    final Channel<Long> ch1 = newChannel(-1);
+    final Channel<Long> poisonPillCh = newChannel(-1);
+    final Channel<Long> chResult = newChannel(-1);
+
+    Thread thread = new Thread(() -> {
+      try {
+        while (!poisonPillCh.isClosed()) {
+          chResult.send(ch1.receive() + 2);
+          Thread.sleep(100);
+
+        }
+
+      } catch (Exception e) {
+        throw new RuntimeException(e);
+      }
+    });
+    thread.start();
+
+    ch1.send(1L);
+    ch1.send(2L);
+
+    assertThat(chResult.receive()).isEqualTo(3l);
+    assertThat(chResult.receive()).isEqualTo(4l);
+
+    poisonPillCh.close();
+    thread.join();
   }
 
   @Test
