@@ -7,6 +7,7 @@ import co.paralleluniverse.fibers.SuspendExecution;
 import co.paralleluniverse.strands.channels.Channel;
 import co.paralleluniverse.strands.channels.Channels;
 import co.paralleluniverse.strands.channels.ReceivePort;
+import com.google.common.base.Predicate;
 import com.ning.http.client.Response;
 import org.junit.Ignore;
 import org.junit.Test;
@@ -44,6 +45,10 @@ public class Tutorial {
     @Test
     public void exercise1_empty_channel() throws Exception {
         // EXERCISE 1: What will happen if one tries to .receive() message before anything is ready in channel?
+      int bufferSize = -1; //-1 means: unbuferred
+      final Channel<String> ch = newChannel(bufferSize);
+      //ch.receive();
+      // thread blocks
     }
 
     @Test
@@ -58,12 +63,12 @@ public class Tutorial {
 
     }
 
-    @Test @Ignore
+    @Test
     public void exercise2_filtering() throws Exception {
         final Channel<Integer> chInt = newChannel(-1);
 
         // Un-@Ignore this test and fix the following line so that the test passes
-        final ReceivePort<Integer> chFiltered = null;
+        final ReceivePort<Integer> chFiltered = filter(chInt, integer -> integer % 2 == 0);
 
         chInt.send(0);
         chInt.send(1);
@@ -118,7 +123,11 @@ public class Tutorial {
 
     @Test
     public void exercise3_unbuffered_channel() throws Exception {
-        // Verify what is going to happen if one creates an unbuffered channel and puts there an abundance of messages?
+      // Verify what is going to happen if one creates an unbuffered channel and puts there an abundance of messages?
+      Channel<Integer> unbufferedChannel = newChannel(-1);
+      for (int i = 0; i < 10000000; ++i) {
+        unbufferedChannel.send(i);
+      }
     }
 
     @Test
@@ -195,6 +204,11 @@ public class Tutorial {
             }
         }).start();
 
+      ch1.send(10l);
+      ch2.send(20l);
+      Long received = chOut.receive();
+      fib1.join();
+      assertThat(received == 10l || received == 20l).isTrue();
     }
 
     @Test
@@ -227,7 +241,7 @@ public class Tutorial {
         long before = ch.receive();
         long after = ch.receive();
 
-        assertThat(after - before).isGreaterThan(100);
+        assertThat(after - before).isGreaterThanOrEqualTo(100);
         System.out.println(fiber.get().getResponseBody());
     }
 
