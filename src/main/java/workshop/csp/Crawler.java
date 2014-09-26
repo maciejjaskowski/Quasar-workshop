@@ -46,8 +46,10 @@ import co.paralleluniverse.strands.SuspendableRunnable;
 import co.paralleluniverse.strands.channels.Channel;
 import co.paralleluniverse.strands.channels.ReceivePort;
 import co.paralleluniverse.strands.channels.SendPort;
+import com.google.common.collect.Maps;
 
 import java.util.List;
+import java.util.Map;
 import java.util.concurrent.ExecutionException;
 
 public class Crawler {
@@ -55,7 +57,6 @@ public class Crawler {
   private final Channel<Integer> requestsCh = newChannel(-1);
   private final Channel<List<Body>> answersCh = newChannel(-1);
   private final Api remoteApi;
-
 
   public Crawler(Api remoteApi) {
     this.remoteApi = remoteApi;
@@ -67,13 +68,34 @@ public class Crawler {
 
   public ReceivePort<List<Body>> run() throws SuspendExecution, InterruptedException, ExecutionException {
     Fiber<Void> fiber = new Fiber<Void>((SuspendableRunnable) () -> {
-      Integer parent = requestsCh.receive();
-      Body body = new FiberApi(remoteApi, parent).run();
-      answersCh.send(newArrayList(body));
-
+      while (!requestsCh.isClosed()) {
+        Integer parent = requestsCh.receive();
+        handleRequest(parent);
+      }
+      answersCh.close();
     }).start();
     fiber.join();
     return answersCh;
+  }
+
+  private void handleRequest(Integer parent) throws SuspendExecution, InterruptedException {
+    Channel<Integer> internalChannel = newChannel(-1);
+    internalChannel.send(parent);
+    Map<Integer, Body> visitedPages = Maps.newHashMap();
+    while (true) {
+      Integer pageLink = internalChannel.tryReceive();
+      if (pageLink == null) {
+        break;
+      }
+      Body body = new FiberApi(remoteApi, pageLink).run();
+      visitedPages.put(pageLink, body);
+      for (Integer link : body.links) {
+        if (!visitedPages.containsKey(link)) {
+          internalChannel.send(link);
+        }
+      }
+    }
+    answersCh.send(newArrayList(visitedPages.values()));
   }
 }
 

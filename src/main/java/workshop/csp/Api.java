@@ -20,7 +20,7 @@ class Body {
             '}';
   }
 
-  public Body(String value, Integer[] links) {
+  public Body(String value, Integer ... links) {
     this.links = links;
     this.value = value;
   }
