@@ -58,7 +58,11 @@ import java.util.concurrent.TimeoutException;
 
 public class Crawler {
 
+  // Generalnie posiadanie kanałów bez limitu w buforze, jak te poniżej to proszenie się o kłopoty
+  // tudzież szansa na wywalenie systemu z OutOfMemoryError
   private final Channel<Integer> requestsCh = newChannel(-1);
+  // Ha. To pewnie nie było dość jasno wyjaśnione. Otóż w moje wizji rozwiązania tego problemu
+  // w tym kanale powinien na koniec znaleźć się dokładnie jeden element -> lista wszystkich odpowiedzi
   private final Channel<List<Body>> answersCh = newChannel(-1);
   private final Api remoteApi;
   private final Optional<Long> timeout;
@@ -73,6 +77,8 @@ public class Crawler {
     this.timeout = Optional.of(timeout);
   }
 
+  // Ja wolę w takiej sytuacji mieć atrybut z anotacjami public final zamiast getterów,
+  // ale to trochę jest kwestia gustu.
   public SendPort<Integer> getRequestCh() {
     return requestsCh;
   }
@@ -85,7 +91,9 @@ public class Crawler {
       }
       answersCh.close();
     }).start();
-    fiber.join();
+    fiber.join(); // Hm. Uruchomienie tutaj fiber.join() spowoduje zawieszenie wątku, który wywołał run().
+      // jeśli zaś tego nie zrobimy, to wywołujący run() będzie mógł sam zdecydować, czy czeka na odpowiedź
+      // w answersCh aktywnie, czy nie.
     return answersCh;
   }
 
@@ -114,11 +122,13 @@ public class Crawler {
       }
     }
     internalChannel.close();
-    answersCh.send(newArrayList(visitedPages.values()));
+    answersCh.send(newArrayList(visitedPages.values())); // Tu można by zaraz po tym zamknąć ten kanał.
   }
 
   private Body getBody(long crawlingStart, Integer pageLink) throws SuspendExecution, InterruptedException {
     Body body;
+    // Rozumiem, co tu chciałeś osiągnąć z tymi timeoutami, ale wygląda mi to na zbyt skomplikowane rozwiązanie.
+
     if (timeout.isPresent()) {
       long now = System.currentTimeMillis();
       long remainingTimeout = timeout.get() - now + crawlingStart;
@@ -149,6 +159,9 @@ class FiberApi extends FiberAsync<Body, RuntimeException> {
 
   @Override
   protected void requestAsync() {
+    // Tak, tego oczekiwałem, ale możesz też chcież spojrzeć na poprawioną wersję
+    // tej części warsztatu, bo udało mi się tam czytelniej to przedstawić.
+
     api.get(parent, input -> {
       asyncCompleted(input);
       return null;
