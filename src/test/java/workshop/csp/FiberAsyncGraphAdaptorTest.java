@@ -5,7 +5,6 @@ import co.paralleluniverse.fibers.SuspendExecution;
 import co.paralleluniverse.strands.SuspendableRunnable;
 import co.paralleluniverse.strands.channels.Channel;
 import co.paralleluniverse.strands.channels.Channels;
-import org.assertj.core.util.Arrays;
 import org.junit.Ignore;
 import org.junit.Test;
 
@@ -13,19 +12,25 @@ import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.util.Arrays.array;
 
 
-public class FiberApiTest {
+public class FiberAsyncGraphAdaptorTest {
     
     @Test @Ignore
-    public void wraps_Api() throws Exception {
-        final Channel<Body> ch = Channels.newChannel(4);
+    public void fiberAsyncGraphAdaptor_invokes_underlying_AsyncGraph_implementation() throws Exception {
+        final Channel<Node> ch = Channels.newChannel(4);
+        final AsyncGraph anAsyncGraph = new AsyncLimitedBinaryTree(5);
+
+        final FiberAsyncGraphAdaptor fiberAsyncGraphAdaptor = new FiberAsyncGraphAdaptor(anAsyncGraph);
+
         new Fiber<Integer[]>(new SuspendableRunnable() {
             @Override
             public void run() throws SuspendExecution, InterruptedException {
-                ch.send(new FiberApi(new RemoteApi(5), 1).run());
+
+                Node node = fiberAsyncGraphAdaptor.getNode(new NodeId(1));
+                ch.send(node);
             }
         }).start();
 
-        assertThat(ch.receive()).isEqualTo(new Body("I am 1", array(2, 3)));
+        assertThat(ch.receive()).isEqualTo(new Node("I am node 1", array(new NodeId(2), new NodeId(3))));
     }
 
     @Test @Ignore
@@ -35,7 +40,7 @@ public class FiberApiTest {
             @Override
             public void run() throws SuspendExecution, InterruptedException {
                 ch.send(System.currentTimeMillis());
-                new FiberApi(new RemoteApi(5), 1).run();
+                new FiberAsyncGraphAdaptor(new AsyncLimitedBinaryTree(5)).getNode(new NodeId(1));
                 ch.send(System.currentTimeMillis());
             }
         }).start();

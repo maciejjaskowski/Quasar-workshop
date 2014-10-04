@@ -28,6 +28,8 @@ public class Tutorial {
 
     // Documentation: http://docs.paralleluniverse.co/quasar/
 
+    // Creators video: http://medianetwork.oracle.com/video/player/3731008736001
+
 
     @Test
     public void channel_is_like_a_fifo_queue() throws Exception {
@@ -35,7 +37,7 @@ public class Tutorial {
         // Channel is like a FIFO queue: one can send a message to it using .send() method
         // or read from it using .receive() method.
 
-        int bufferSize = -1; //-1 means: unbuferred
+        int bufferSize = 1;
         final Channel<String> ch = newChannel(bufferSize);
 
         ch.send("A message.");
@@ -49,15 +51,25 @@ public class Tutorial {
     }
 
     @Test
-    public void exercise1a_unbuffered_channel() throws Exception {
-        // Verify what is going to happen if one creates an unbuffered channel and puts there an abundance of messages?
+    public void closing_channel() throws Exception {
+        // Once you are done with a Channel you may close it.
+        // Normally you don't need to fear memory leak if you don't but sometimes closing a Channel might be very handy.
+        // What happens if you send message to a closed channel?
+
+        final Channel<Integer> ch = newChannel(10);
+        ch.send(1);
+
+        ch.close();
+        assertThat(ch.receive()).isEqualTo(1);
+        assertThat(ch.receive()).isEqualTo(null);
+        assertThat(ch.receive()).isEqualTo(null);
     }
 
 
     @Test
     public void one_can_apply_map_to_channel() throws Exception {
         // One can use classics from functional programming world: map/flatMap/filter:
-        final Channel<Integer> ch = newChannel(-1);
+        final Channel<Integer> ch = newChannel(10);
 
         final ReceivePort<String> transformedChannel = map(ch, Object::toString);
 
@@ -68,7 +80,7 @@ public class Tutorial {
 
     @Test @Ignore
     public void exercise2_filtering() throws Exception {
-        final Channel<Integer> chInt = newChannel(-1);
+        final Channel<Integer> chInt = newChannel(10);
 
         // Un-@Ignore this test and fix the following line so that the test passes
         final ReceivePort<Integer> chFiltered = null;
@@ -140,6 +152,7 @@ public class Tutorial {
         //
         // Alternatively, instead of poisonPillCh.send(1L) one could ch1.close() the channel.
         // What's the difference between those two solutions?
+        //
 
         final Channel<Long> ch1 = newChannel(-1);
         final Channel<Long> poisonPillCh = newChannel(-1);

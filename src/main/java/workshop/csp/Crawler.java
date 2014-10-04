@@ -2,12 +2,16 @@ package workshop.csp;
 
 
 // Main Exercise:
-// Using Fibers and Channels create a crawler that will asynchronously crawl an Api (e.g. RemoteApi)
-// For simplicity our Api is just an interface and a dummy RemoteApi implementation is provided.
+// Using Fibers and Channels create a crawler that will asynchronously crawl an Api
+
+// For simplicity our Api is just an Asynchronous Graph (AsyncGraph).
+// An implementation (AsyncLimitedBinaryTree) is provided. Examine the tests to make sure you understand how it works.
+
+
 // I recommend solving this exercise in a couple of steps.
-//
+
 // Step I:
-// Fill in FiberApi so that FiberApiTest passes.
+// Fill in FiberAsyncGraphAdaptor so that FiberAsyncGraphAdaptorTest passes.
 //
 // Step II:
 // You should be able to send one request to the requestsCh (e.g. 1).
@@ -16,8 +20,9 @@ package workshop.csp;
 // Write tests!
 //
 // Step III:
-// Each body from Api might carry zero or more links. Combine the channels in such a way that
-// the Crawler crawls the whole Api.
+// Each Node of AsyncGraph might be connected to zero or more neighbour Nodes. Combine the channels in such a way that
+// the Crawler crawls the whole AsyncGraph.
+// Make sure that the computation finishes.
 // Write tests!
 //
 // Step IV:
@@ -37,36 +42,35 @@ package workshop.csp;
 
 
 import co.paralleluniverse.fibers.FiberAsync;
+import co.paralleluniverse.fibers.SuspendExecution;
 import co.paralleluniverse.strands.channels.ReceivePort;
-import com.google.common.base.Function;
 
 public class Crawler {
 
-//    public final SendPort<Integer> requestsCh;
-//    public final ReceivePort<List<Body>> answersCh;
+//    public final Channel<Integer> requestsCh;
+//    public final Channel<List<Body>> answersCh;
 
-    public ReceivePort<Body> run() {
+    public ReceivePort<Node> run() {
         // Fill in.
         return null;
     }
 }
 
+class FiberAsyncGraphAdaptor {
+    private final AsyncGraph asyncGraph;
 
-class FiberApi extends FiberAsync<Body, RuntimeException> {
-
-    private final Api api;
-    private Integer parent;
-
-    public FiberApi(Api api, Integer parent) {
-        this.api = api;
-        this.parent = parent;
+    public FiberAsyncGraphAdaptor(AsyncGraph asyncGraph) {
+        this.asyncGraph = asyncGraph;
     }
 
-    @Override
-    protected void requestAsync() {
-        // Fill in.
+    public Node getNode(NodeId nodeId) throws InterruptedException, SuspendExecution {
+        return new FiberAsync<Node, RuntimeException>() {
+          @Override
+          protected void requestAsync() {
+              // Fill in.
+          }
+        }.run();
     }
-
 }
 
 
